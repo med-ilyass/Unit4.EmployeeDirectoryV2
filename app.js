@@ -2,28 +2,30 @@ import express from "express";
 const app = express();
 export default app;
 
-import employees from "#db/employees";
+import employees from "./db/employees.js"; // Add .js if using ES modules
 
-app.route("/").get((req, res) => {
+// Middleware to parse JSON body
+app.use(express.json());
+
+// Root route
+app.get("/", (req, res) => {
   res.send("Hello employees!");
 });
 
-app.route("/employees").get((req, res) => {
+// Get all employees
+app.get("/employees", (req, res) => {
   res.send(employees);
 });
 
-// Note: this middleware has to come first! Otherwise, Express will treat
-// "random" as the argument to the `id` parameter of /employees/:id.
-app.route("/employees/random").get((req, res) => {
+// Get a random employee
+app.get("/employees/random", (req, res) => {
   const randomIndex = Math.floor(Math.random() * employees.length);
   res.send(employees[randomIndex]);
 });
 
-app.route("/employees/:id").get((req, res) => {
+// Get employee by ID
+app.get("/employees/:id", (req, res) => {
   const { id } = req.params;
-
-  // req.params are always strings, so we need to convert `id` into a number
-  // before we can use it to find the employee
   const employee = employees.find((e) => e.id === +id);
 
   if (!employee) {
@@ -31,4 +33,27 @@ app.route("/employees/:id").get((req, res) => {
   }
 
   res.send(employee);
+});
+
+// ✅ POST new employee at the correct path
+app.post("/employees", (req, res) => {
+  const { name } = req.body;
+
+  if (!name || typeof name !== "string" || name.trim() === "") {
+    return res.status(400).send({ error: "Name is required and must be a non-empty string." });
+  }
+
+  const newEmployee = {
+    id: employees.length ? Math.max(...employees.map(e => e.id)) + 1 : 1,
+    name: name.trim(),
+  };
+
+  employees.push(newEmployee);
+  res.status(201).send(newEmployee);
+});
+
+// Catch-all error handler
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send("Something broke!");
 });
